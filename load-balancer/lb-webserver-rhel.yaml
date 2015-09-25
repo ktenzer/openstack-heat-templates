@@ -4,7 +4,7 @@ parameters:
   image:
     type: string
     description: Image used for servers
-    default: RHEL7.1
+    default: RHEL 7.1
   key_name:
     type: string
     description: SSH key to connect to the servers
@@ -20,11 +20,11 @@ parameters:
   subnet_id:
     type: string
     description: subnet on which the load balancer will be located
-    default: 2f3a7389-2c7b-45f6-82e3-9280025afc91
+    default: 9daa6b7d-e647-482a-b387-dd5f855b88ef
   external_network_id:
     type: string
     description: UUID of a Neutron external network
-    default: 9c9dc792-c55d-4d48-9b86-796bfacf8ad9
+    default: db17c885-77fa-45e8-8647-dbb132517960
 
 resources:
   webserver:
@@ -50,13 +50,16 @@ resources:
 
                 echo "hostip fqdn shortname" >> /etc/hosts
                 subscription-manager clean
+                sleep 5
                 rpm -Uvh http://sat6.lab.com/pub/katello-ca-consumer-latest.noarch.rpm
+                sleep 5
                 subscription-manager register --org="Default_Organization" --activationkey="DEV_CORE"
+                sleep 5
                 yum -y install httpd php
                 systemctl enable httpd
                 systemctl start httpd
                 cat <<EOF > /var/www/html/hostname.php
-                <?php echo php_uname('n'); ?>
+                <?php echo "Hello, My name is " . php_uname('n'); ?>
                 EOF
               params:
                 hostip: 192.168.122.70
@@ -99,7 +102,7 @@ resources:
       description: Scale-down if the average CPU < 15% for 60 minutes
       meter_name: cpu_util
       statistic: avg
-      period: 300
+      period: 60
       evaluation_periods: 1
       threshold: 15
       alarm_actions:

@@ -20,11 +20,11 @@ parameters:
   subnet_id:
     type: string
     description: subnet on which the load balancer will be located
-    default: 2f3a7389-2c7b-45f6-82e3-9280025afc91
+    default: 9daa6b7d-e647-482a-b387-dd5f855b88ef
   external_network_id:
     type: string
     description: UUID of a Neutron external network
-    default: 9c9dc792-c55d-4d48-9b86-796bfacf8ad9
+    default: db17c885-77fa-45e8-8647-dbb132517960
 
 resources:
   webserver:
@@ -52,7 +52,7 @@ resources:
                 systemctl enable httpd
                 systemctl start httpd
                 cat <<EOF > /var/www/html/hostname.php
-                <?php echo php_uname('n'); echo $_SERVER['SERVER_ADDR'] ?>
+                <?php echo "Hello, My name is " . php_uname('n'); ?>
                 EOF
               params:
                 hostip: 192.168.122.70
