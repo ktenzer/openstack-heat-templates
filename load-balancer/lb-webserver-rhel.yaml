@@ -1,0 +1,184 @@
+heat_template_version: 2014-10-16
+description: AutoScaling RHEL 7.1 Web Application
+parameters:
+  image:
+    type: string
+    description: Image used for servers
+    default: RHEL7.1
+  key_name:
+    type: string
+    description: SSH key to connect to the servers
+    default: admin
+  flavor:
+    type: string
+    description: flavor used by the web servers
+    default: m2.tiny
+  network:
+    type: string
+    description: Network used by the server
+    default: private
+  subnet_id:
+    type: string
+    description: subnet on which the load balancer will be located
+    default: 2f3a7389-2c7b-45f6-82e3-9280025afc91
+  external_network_id:
+    type: string
+    description: UUID of a Neutron external network
+    default: 9c9dc792-c55d-4d48-9b86-796bfacf8ad9
+
+resources:
+  webserver:
+    type: OS::Heat::AutoScalingGroup
+    properties:
+      min_size: 1
+      max_size: 3
+      cooldown: 60
+      desired_capacity: 1
+      resource:
+        type: http://192.168.122.70/pub/lb-env.yaml
+        properties:
+          flavor: {get_param: flavor}
+          image: {get_param: image}
+          key_name: {get_param: key_name}
+          network: {get_param: network}
+          pool_id: {get_resource: pool}
+          metadata: {"metering.stack": {get_param: "OS::stack_id"}}
+          user_data:
+            str_replace:
+              template: |
+                #!/bin/bash -v
+
+                echo "hostip fqdn shortname" >> /etc/hosts
+                subscription-manager clean
+                rpm -Uvh http://sat6.lab.com/pub/katello-ca-consumer-latest.noarch.rpm
+                subscription-manager register --org="Default_Organization" --activationkey="DEV_CORE"
+                yum -y install httpd php
+                systemctl enable httpd
+                systemctl start httpd
+                cat <<EOF > /var/www/html/hostname.php
+                <?php echo php_uname('n'); ?>
+                EOF
+              params:
+                hostip: 192.168.122.70
+                fqdn: sat6.lab.com
+                shortname: sat6
+
+  web_server_scaleup_policy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: {get_resource: webserver}
+      cooldown: 60
+      scaling_adjustment: 1
+
+  web_server_scaledown_policy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: {get_resource: webserver}
+      cooldown: 60
+      scaling_adjustment: -1
+
+  cpu_alarm_high:
+    type: OS::Ceilometer::Alarm
+    properties:
+      description: Scale-up if the average CPU > 95% for 1 minute
+      meter_name: cpu_util
+      statistic: avg
+      period: 60
+      evaluation_periods: 1
+      threshold: 95
+      alarm_actions:
+        - {get_attr: [web_server_scaleup_policy, alarm_url]}
+      matching_metadata: {'metadata.user_metadata.stack': {get_param: "OS::stack_id"}}
+      comparison_operator: gt
+
+  cpu_alarm_low:
+    type: OS::Ceilometer::Alarm
+    properties:
+      description: Scale-down if the average CPU < 15% for 60 minutes
+      meter_name: cpu_util
+      statistic: avg
+      period: 300
+      evaluation_periods: 1
+      threshold: 15
+      alarm_actions:
+        - {get_attr: [web_server_scaledown_policy, alarm_url]}
+      matching_metadata: {'metadata.user_metadata.stack': {get_param: "OS::stack_id"}}
+      comparison_operator: lt
+
+  monitor:
+    type: OS::Neutron::HealthMonitor
+    properties:
+      type: TCP
+      delay: 5
+      max_retries: 5
+      timeout: 5
+
+  pool:
+    type: OS::Neutron::Pool
+    properties:
+      protocol: HTTP
+      monitors: [{get_resource: monitor}]
+      subnet_id: {get_param: subnet_id}
+      lb_method: ROUND_ROBIN
+      vip:
+        protocol_port: 80
+
+  lb:
+    type: OS::Neutron::LoadBalancer
+    properties:
+      protocol_port: 80
+      pool_id: {get_resource: pool}
+
+  lb_floating:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network_id: {get_param: external_network_id}
+      port_id: {get_attr: [pool, vip, port_id]}
+
+outputs:
+  scale_up_url:
+    description: >
+      This URL is the webhook to scale up the autoscaling group.  You
+      can invoke the scale-up operation by doing an HTTP POST to this
+      URL; no body nor extra headers are needed.
+    value: {get_attr: [web_server_scaleup_policy, alarm_url]}
+  scale_dn_url:
+    description: >
+      This URL is the webhook to scale down the autoscaling group.
+      You can invoke the scale-down operation by doing an HTTP POST to
+      this URL; no body nor extra headers are needed.
+    value: {get_attr: [web_server_scaledown_policy, alarm_url]}
+  pool_ip_address:
+    value: {get_attr: [pool, vip, address]}
+    description: The IP address of the load balancing pool
+  website_url:
+    value:
+      str_replace:
+        template: http://serviceip/hostname.php
+        params:
+          serviceip: { get_attr: [lb_floating, floating_ip_address] }
+    description: >
+      This URL is the "external" URL that can be used to access the
+      website.
+  ceilometer_query:
+    value:
+      str_replace:
+        template: >
+          ceilometer statistics -m cpu_util
+          -q metadata.user_metadata.stack=stackval -p 600 -a avg
+        params:
+          stackval: { get_param: "OS::stack_id" }
+    description: >
+      This is a Ceilometer query for statistics on the cpu_util meter
+      Samples about OS::Nova::Server instances in this stack.  The -q
+      parameter selects Samples according to the subject's metadata.
+      When a VM's metadata includes an item of the form metering.X=Y,
+      the corresponding Ceilometer resource has a metadata item of the
+      form user_metadata.X=Y and samples about resources so tagged can
+      be queried with a Ceilometer query term of the form
+      metadata.user_metadata.X=Y.  In this case the nested stacks give
+      their VMs metadata that is passed as a nested stack parameter,
+      and this stack passes a metadata of the form metering.stack=Y,
+      where Y is this stack's ID.

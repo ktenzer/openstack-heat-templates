@@ -1,0 +1,40 @@
+heat_template_version: 2014-10-16
+description: A base Cirros 0.3.4 server
+ 
+resources:
+  server:
+    type: OS::Nova::Server
+    properties:
+      block_device_mapping:
+        - device_name: vda
+          delete_on_termination: true
+          volume_id: { get_resource: volume }
+      flavor: m1.nano
+      key_name: admin
+      networks:
+        - port: { get_resource: port }
+ 
+  port:
+    type: OS::Neutron::Port
+    properties:
+      network: private
+      security_groups:
+        - all
+ 
+  floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: public
+ 
+  floating_ip_assoc:
+    type: OS::Neutron::FloatingIPAssociation
+    properties:
+      floatingip_id: { get_resource: floating_ip }
+      port_id: { get_resource: port }
+ 
+  volume:
+    type: OS::Cinder::Volume
+    properties:
+      image: 'Cirros 0.3.4'
+      size: 1
+
