@@ -35,7 +35,7 @@ resources:
       cooldown: 60
       desired_capacity: 1
       resource:
-        type: http://192.168.122.70/pub/lb-env.yaml
+        type: file:///etc/heat/templates/lb-env.yaml
         properties:
           flavor: {get_param: flavor}
           image: {get_param: image}
