@@ -1,0 +1,85 @@
+heat_template_version: 2013-05-23
+description: CentOS Ansible Tower
+parameters:
+  server_name:
+    type: string
+    description: Name of server
+    default: tower
+  image:
+    type: string
+    description: Image used for servers
+    default: CentOS_7
+  key_name:
+    type: string
+    description: SSH key to connect to the servers
+    default: admin
+  flavor:
+    type: string
+    description: flavor used by the web servers
+    default: m2.small
+  private_net_id:
+    type: string
+    default: 431aa0f5-2790-403b-84e0-7cb88b836782
+    description: Id of the private network for the compute server
+  private_subnet_id:
+    type: string
+    default: d7b6fb94-f083-4347-a75a-8025c06b5a31
+    description: Id of the private sub network for the compute server
+  public_net_id:
+    type: string
+    default: c55f71f6-5b6c-4c1a-a56e-8420a8652f50
+    description: Id of the public network for the compute server 
+ 
+resources:
+  webserver:
+    type: OS::Nova::Server
+    properties:
+      name: { get_param: server_name }
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      networks:
+        - port: { get_resource: server_port }
+      user_data: |
+        #!/bin/bash -v
+        curl -O http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-6.noarch.rpm
+        rpm -ivh epel-release-7-6.noarch.rpm
+        yum install -y ansible
+        cd /root
+        curl -O https://releases.ansible.com/awx/setup/ansible-tower-setup-latest.tar.gz
+        tar xvzf ansible-tower-setup-latest.tar.gz
+        cd ansible-tower-setup-2*
+        cat << EOF > tower_setup_conf.yml
+        admin_password: redhat01
+        database: internal
+        munin_password: redhat01
+        pg_password: redhat01
+        primary_machine: localhost
+        redis_password: redhat01
+        EOF
+        sed -i 's/Defaults    requiretty/Defaults    !requiretty/g' /etc/sudoers
+        ./configure -o tower_setup_conf.yml
+        ./setup.sh
+
+  server_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      fixed_ips:
+        - subnet_id: { get_param: private_subnet_id }
+      security_groups:
+        - all
+
+  server_floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network_id: { get_param: public_net_id }
+      port_id: { get_resource: server_port }
+
+outputs:
+  server_private_ip:
+    description: IP address of server on private network
+    value: { get_attr: [ webserver, first_address ] }
+  server_public_ip:
+    description: Floating IP address of server on public network
+    value: { get_attr: [ server_floating_ip, floating_ip_address ] }
