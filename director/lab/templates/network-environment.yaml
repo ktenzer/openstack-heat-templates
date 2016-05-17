@@ -1,0 +1,71 @@
+resource_registry:
+  OS::TripleO::BlockStorage::Net::SoftwareConfig: /home/stack/templates/nic-configs/cinder-storage.yaml
+  OS::TripleO::Compute::Net::SoftwareConfig: /home/stack/templates/nic-configs/compute.yaml
+  OS::TripleO::Controller::Net::SoftwareConfig: /home/stack/templates/nic-configs/controller.yaml
+  OS::TripleO::ObjectStorage::Net::SoftwareConfig: /home/stack/templates/nic-configs/swift-storage.yaml
+  OS::TripleO::CephStorage::Net::SoftwareConfig: /home/stack/templates/nic-configs/ceph-storage.yaml
+
+parameter_defaults:
+  InternalApiNetCidr: 192.168.124.0/24
+  TenantNetCidr: 10.100.0.0/16
+  #StorageNetCidr: 10.3.0.0/16
+  #StorageMgmtNetCidr: 10.4.0.0/16
+  ExternalNetCidr: 192.168.122.0/24
+  InternalApiAllocationPools: [{'start': '192.168.124.11', 'end': '192.168.124.254'}]
+  TenantAllocationPools: [{'start': '10.100.0.10', 'end': '10.100.253.254'}]
+  #StorageAllocationPools: [{'start': '10.3.0.10', 'end': '10.3.253.254'}]
+  #StorageMgmtAllocationPools: [{'start': '10.4.0.10', 'end': '10.4.253.254'}]
+  # Leave room for floating IPs in the External allocation pool
+  ExternalAllocationPools: [{'start': '192.168.122.101', 'end': '192.168.122.150'}]
+  # Set to the router gateway on the external network
+  ExternalInterfaceDefaultRoute: 192.168.122.1
+  # Gateway router for the provisioning network (or Undercloud IP)
+  ControlPlaneDefaultRoute: 192.168.126.254
+  # The IP address of the EC2 metadata server. Generally the IP of the Undercloud
+  EC2MetadataIp: 192.168.126.1
+  # Define the DNS servers (maximum 2) for the overcloud nodes
+  DnsServers: ["8.8.8.8","8.8.4.4"]
+  #ControlPlaneVlanID: 1
+  #InternalApiNetworkVlanID: 2
+  #StorageNetworkVlanID: 3
+  #StorageMgmtNetworkVlanID: 4
+  #TenantNetworkVlanID: 100
+  #ExternalNetworkVlanID: 10
+  # Set to "br-ex" if using floating IPs on native VLAN on bridge br-ex
+  NeutronExternalNetworkBridge: "''"
+  # Customize bonding options if required
+  BondInterfaceOvsOptions:
+#    "bond_mode=balance-tcp lacp=active other-config:lacp-fallback-ab=true other_config:bond-detect-mode=miimon other_config:bond-miimon-interval=100 other_config:bond_updelay=1000"
+    "bond_mode=balance-slb"
+  ControlPlaneSubnetCidr: '16'
+
+  ServiceNetMap:
+    NeutronTenantNetwork: tenant
+    CeilometerApiNetwork: internal_api
+    MongoDbNetwork: internal_api
+    CinderApiNetwork: internal_api
+    CinderIscsiNetwork: storage
+    GlanceApiNetwork: storage
+    GlanceRegistryNetwork: internal_api
+    KeystoneAdminApiNetwork: internal_api
+    KeystonePublicApiNetwork: internal_api
+    NeutronApiNetwork: internal_api
+    HeatApiNetwork: internal_api
+    NovaApiNetwork: internal_api
+    NovaMetadataNetwork: internal_api
+    NovaVncProxyNetwork: internal_api
+    SwiftMgmtNetwork: storage_mgmt
+    SwiftProxyNetwork: storage
+    HorizonNetwork: internal_api
+    MemcachedNetwork: internal_api
+    RabbitMqNetwork: internal_api
+    RedisNetwork: internal_api
+    MysqlNetwork: internal_api
+    CephClusterNetwork: storage_mgmt
+    CephPublicNetwork: storage
+    # Define which network will be used for hostname resolution
+    ControllerHostnameResolveNetwork: internal_api
+    ComputeHostnameResolveNetwork: internal_api
+    BlockStorageHostnameResolveNetwork: internal_api
+    ObjectStorageHostnameResolveNetwork: internal_api
+    CephStorageHostnameResolveNetwork: storage
