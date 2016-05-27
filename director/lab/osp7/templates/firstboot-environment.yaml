@@ -1,0 +1,18 @@
+heat_template_version: 2014-10-16
+ 
+resources:
+  userdata:
+    type: OS::Heat::MultipartMime
+    properties:
+      parts:
+      - config: {get_resource: repo_config}
+ 
+  repo_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      config: {get_file: /home/stack/templates/node-setup.sh}
+ 
+outputs:
+  OS::stack_id:
+    value: {get_resource: userdata}
