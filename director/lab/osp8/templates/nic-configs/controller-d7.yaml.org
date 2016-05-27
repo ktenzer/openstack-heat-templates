@@ -2,7 +2,7 @@ heat_template_version: 2015-04-30
 
 description: >
   Software Config to drive os-net-config with 2 bonded nics on a bridge
-  with VLANs attached for the controller role.
+  with a VLANs attached for the controller role.
 
 parameters:
   ControlPlaneIp:
@@ -29,12 +29,8 @@ parameters:
     default: ''
     description: IP address/subnet on the tenant network
     type: string
-  ManagementIpSubnet: # Only populated when including environments/network-management.yaml
-    default: ''
-    description: IP address/subnet on the management network
-    type: string
   BondInterfaceOvsOptions:
-    default: 'bond_mode=active-backup'
+    default: ''
     description: The ovs_options string for the bond interface. Set things like
                  lacp=active and/or bond_mode=balance-slb using this option.
     type: string
@@ -58,12 +54,8 @@ parameters:
     default: 50
     description: Vlan ID for the tenant network traffic.
     type: number
-  ManagementNetworkVlanID:
-    default: 60
-    description: Vlan ID for the management network traffic.
-    type: number
   ExternalInterfaceDefaultRoute:
-    default: '192.168.126.254'
+    default: '10.0.0.1'
     description: default route for the external network
     type: string
   ControlPlaneSubnetCidr: # Override this via parameter_defaults
@@ -73,7 +65,7 @@ parameters:
   DnsServers: # Override this via parameter_defaults
     default: []
     description: A list of DNS servers (2 max for some implementations) that will be added to resolv.conf.
-    type: comma_delimited_list
+    type: json
   EC2MetadataIp: # Override this via parameter_defaults
     description: The IP address of the EC2 metadata server.
     type: string
@@ -104,11 +96,6 @@ resources:
             -
               type: ovs_bridge
               name: {get_input: bridge_name}
-              addresses:
-                - ip_netmask: {get_param: ExternalIpSubnet}
-              routes:
-                - default: true
-                  next_hop: {get_param: ExternalInterfaceDefaultRoute}
               dns_servers: {get_param: DnsServers}
               members:
                 -
@@ -126,39 +113,42 @@ resources:
                 -
                   type: vlan
                   device: bond1
-                  vlan_id: {get_param: InternalApiNetworkVlanID}
+                  vlan_id: {get_param: ExternalNetworkVlanID}
                   addresses:
                     -
-                      ip_netmask: {get_param: InternalApiIpSubnet}
+                      ip_netmask: {get_param: ExternalIpSubnet}
+                  routes:
+                    -
+                      ip_netmask: 0.0.0.0/0
+                      next_hop: {get_param: ExternalInterfaceDefaultRoute}
+                -
+                  type: vlan
+                  device: bond1
+                  vlan_id: {get_param: InternalApiNetworkVlanID}
+                  addresses:
+                  -
+                    ip_netmask: {get_param: InternalApiIpSubnet}
                 -
                   type: vlan
                   device: bond1
                   vlan_id: {get_param: StorageNetworkVlanID}
                   addresses:
-                    -
-                      ip_netmask: {get_param: StorageIpSubnet}
+                  -
+                    ip_netmask: {get_param: StorageIpSubnet}
                 -
                   type: vlan
                   device: bond1
                   vlan_id: {get_param: StorageMgmtNetworkVlanID}
                   addresses:
-                    -
-                      ip_netmask: {get_param: StorageMgmtIpSubnet}
+                  -
+                    ip_netmask: {get_param: StorageMgmtIpSubnet}
                 -
                   type: vlan
                   device: bond1
                   vlan_id: {get_param: TenantNetworkVlanID}
                   addresses:
-                    -
-                      ip_netmask: {get_param: TenantIpSubnet}
-                # Uncomment when including environments/network-management.yaml
-                #-
-                #  type: vlan
-                #  device: bond1
-                #  vlan_id: {get_param: ManagementNetworkVlanID}
-                #  addresses:
-                #    -
-                #      ip_netmask: {get_param: ManagementIpSubnet}
+                  -
+                    ip_netmask: {get_param: TenantIpSubnet}
 
 outputs:
   OS::stack_id:

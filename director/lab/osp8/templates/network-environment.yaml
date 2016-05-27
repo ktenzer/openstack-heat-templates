@@ -1,46 +1,42 @@
-#This file is an example of an environment file for defining the isolated
-#networks and related parameters.
 resource_registry:
-  # Network Interface templates to use (these files must exist)
-  OS::TripleO::BlockStorage::Net::SoftwareConfig:
-    /home/stack/templates/nic-configs/cinder-storage.yaml
-  OS::TripleO::Compute::Net::SoftwareConfig:
-    /home/stack/templates/nic-configs/compute.yaml
-  OS::TripleO::Controller::Net::SoftwareConfig:
-    /home/stack/templates/nic-configs/controller.yaml 
+ OS::TripleO::BlockStorage::Net::SoftwareConfig: /home/stack/templates/nic-configs/cinder-storage.yaml
+ OS::TripleO::Compute::Net::SoftwareConfig: /home/stack/templates/nic-configs/compute.yaml
+ OS::TripleO::Controller::Net::SoftwareConfig: /home/stack/templates/nic-configs/controller.yaml
+ OS::TripleO::ObjectStorage::Net::SoftwareConfig: /home/stack/templates/nic-configs/swift-storage.yaml
 
 parameter_defaults:
-  # This section is where deployment-specific configuration is done
-  # Customize the IP subnets to match the local environment
-  InternalApiNetCidr: 10.10.1.0/24
-  #StorageNetCidr: 172.18.0.0/24
-  #StorageMgmtNetCidr: 172.19.0.0/24
-  TenantNetCidr: 10.100.0.0/16
-  ExternalNetCidr: 192.168.122.0/24
-  # CIDR subnet mask length for provisioning network
-  ControlPlaneSubnetCidr: '24'
-  # Customize the IP ranges on each network to use for static IPs and VIPs
-  InternalApiAllocationPools: [{'start': '10.10.1.10', 'end': '10.10.1.254'}]
-  #StorageAllocationPools: [{'start': '172.18.0.10', 'end': '172.18.0.200'}]
-  #StorageMgmtAllocationPools: [{'start': '172.19.0.10', 'end': '172.19.0.200'}]
-  TenantAllocationPools: [{'start': '10.100.0.10', 'end': '10.100.253.254'}]
-  # Leave room if the external network is also used for floating IPs
-  ExternalAllocationPools: [{'start': '192.168.122.110', 'end': '192.168.122.150'}]
-  # Gateway router for the external network
-  ExternalInterfaceDefaultRoute: 192.168.122.1
-  # Gateway router for the provisioning network (or Undercloud IP)
-  ControlPlaneDefaultRoute: 192.168.126.254
-  # Generally the IP of the Undercloud
-  EC2MetadataIp: 192.168.126.1
-  # Define the DNS servers (maximum 2) for the overcloud nodes
-  DnsServers: ["8.8.8.8","8.8.4.4"]
-  # Customize the VLAN IDs to match the local environment
-  InternalApiNetworkVlanID: 10
-  #StorageNetworkVlanID: 20
-  #StorageMgmtNetworkVlanID: 30
-  TenantNetworkVlanID: 40
-  ExternalNetworkVlanID: 50
-  # Set to empty string to enable multiple external networks or VLANs
-  NeutronExternalNetworkBridge: "br-ex"
-  # Customize bonding options, e.g. "mode=4 lacp_rate=1 updelay=1000 miimon=100"
-  BondInterfaceOvsOptions: "mode=active-backup"
+
+ # The IP address of the EC2 metadata server. Generally the IP of the Undercloud
+ EC2MetadataIp: 192.168.126.1
+ # Gateway router for the provisioning network (or Undercloud IP)
+ ControlPlaneDefaultRoute: 192.168.126.254
+ # https://bugzilla.redhat.com/show_bug.cgi?id=1328149
+ ControlPlaneSubnetCidr: '24'
+ DnsServers: ["8.8.8.8"]
+
+ InternalApiNetCidr: 172.16.0.0/24
+ TenantNetCidr: 172.17.0.0/24
+ StorageNetCidr: 172.18.0.0/24
+ StorageMgmtNetCidr: 172.19.0.0/24
+ ExternalNetCidr: 192.168.122.0/24
+
+ # Leave room for floating IPs in the External allocation pool
+ ExternalAllocationPools: [{'start': '192.168.122.101', 'end': '192.168.122.200'}]
+ InternalApiAllocationPools: [{'start': '172.16.0.10', 'end': '172.16.0.200'}]
+ TenantAllocationPools: [{'start': '172.17.0.10', 'end': '172.17.0.200'}]
+ StorageAllocationPools: [{'start': '172.18.0.10', 'end': '172.18.0.200'}]
+ StorageMgmtAllocationPools: [{'start': '172.19.0.10', 'end': '172.19.0.200'}]
+
+ InternalApiNetworkVlanID: 201
+ StorageNetworkVlanID: 202
+ StorageMgmtNetworkVlanID: 203
+ TenantNetworkVlanID: 204
+
+ # ExternalNetworkVlanID: 100
+ # Set to the router gateway on the external network
+ ExternalInterfaceDefaultRoute: 192.168.100.1
+ # Set to "br-ex" if using floating IPs on native VLAN on bridge br-ex
+ NeutronExternalNetworkBridge: "br-ex"
+
+ # Customize bonding options if required
+ BondInterfaceOvsOptions: "bond_mode=active-backup"
