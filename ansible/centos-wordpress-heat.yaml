@@ -1,0 +1,84 @@
+heat_template_version: 2013-05-23
+description: CentOS WordPress All-In-One deployed using Ansible Tower
+parameters:
+  server_name:
+    type: string
+    description: Name of server
+  image:
+    type: string
+    description: Image used for servers
+    default: CentOS72
+  key_name:
+    type: string
+    description: SSH key to connect to the servers
+    default: admin
+  flavor:
+    type: string
+    description: flavor used by the web servers
+    default: m1.small
+  private_net_id:
+    type: string
+    default: 459f477d-4c67-4800-ad07-adb9b096caf5
+    description: Id of the private network for the compute server
+  private_subnet_id:
+    type: string
+    default: 84c5e031-ed09-4ec0-86e4-609b27e21efb
+    description: Id of the private sub network for the compute server
+  tower_private_ip:
+    type: string
+    default: 192.168.0.205
+    description: Ansible Tower Private IP
+ 
+resources:
+  wait_condition:
+    type: OS::Heat::WaitCondition
+    properties:
+      handle: { get_resource: wait_handle }
+      count: 1
+      timeout: 600
+
+  wait_handle:
+    type: OS::Heat::WaitConditionHandle
+
+  webserver:
+    type: OS::Nova::Server
+    properties:
+      name: { get_param: server_name }
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      networks:
+        - port: { get_resource: server_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash -v
+            curl -f -k -H 'Content-Type: application/json' -XPOST -d '{"host_config_key": "8217c0a711b3af173be033aab12534f0", "extra_vars": {"HEAT_ENDPOINT": "wait_endpoint","HEAT_TOKEN": "wait_token"}}' https://tower_ip:443/api/v1/job_templates/7/callback/ 
+          params:
+            tower_ip: { get_param: tower_private_ip }
+            wc_notify: { get_attr: ['wait_handle', 'curl_cli'] }
+            wait_endpoint: { get_attr: [ wait_handle, endpoint ] }
+            wait_token: { get_attr: [ wait_handle, token ] }
+
+  server_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      fixed_ips:
+        - subnet_id: { get_param: private_subnet_id }
+      security_groups:
+        - all
+
+outputs:
+  server_private_ip:
+    description: IP address of server on private network
+    value: { get_attr: [ webserver, first_address ] }
+  curl_cli:
+    value: { get_attr: ['wait_handle', 'curl_cli'] }
+  wait_endpoint:
+    value: { get_attr: ['wait_handle', 'endpoint'] }
+  wait_token:
+    value: { get_attr: ['wait_handle', 'token'] }
+  wc_data:
+    value: { get_attr: ['wait_condition', 'data'] }
