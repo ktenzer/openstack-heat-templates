@@ -1,0 +1,10 @@
+export OS_NO_CACHE=True
+export OS_CLOUDNAME=overcloud
+export OS_AUTH_URL=http://192.168.122.106:5000/v2.0
+export NOVA_VERSION=1.1
+export COMPUTE_API_VERSION=1.1
+export OS_USERNAME=admin
+export no_proxy=,192.168.122.106,192.168.126.101
+export OS_PASSWORD=HngV6vc4ZP2bZ78ePfgWAvHAh
+export PYTHONWARNINGS="ignore:Certificate has no, ignore:A true SSLContext object is not available"
+export OS_TENANT_NAME=admin

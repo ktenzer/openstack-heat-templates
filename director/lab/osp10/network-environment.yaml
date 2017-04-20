@@ -1,0 +1,53 @@
+resource_registry:
+ OS::TripleO::BlockStorage::Net::SoftwareConfig: /home/stack/templates/nic-configs/cinder-storage.yaml
+ OS::TripleO::Compute::Net::SoftwareConfig: /home/stack/templates/nic-configs/compute.yaml
+ OS::TripleO::Controller::Net::SoftwareConfig: /home/stack/templates/nic-configs/controller.yaml
+ OS::TripleO::ObjectStorage::Net::SoftwareConfig: /home/stack/templates/nic-configs/swift-storage.yaml
+  # Network Interface templates to use (these files must exist)
+#  OS::TripleO::BlockStorage::Net::SoftwareConfig:
+#    /home/stack/templates/network/config/single-nic-vlans/cinder-storage.yaml
+#  OS::TripleO::Compute::Net::SoftwareConfig:
+#    /home/stack/templates/network/config/single-nic-vlans/compute.yaml
+#  OS::TripleO::Controller::Net::SoftwareConfig:
+#    /home/stack/templates/network/config/single-nic-vlans/controller.yaml
+#  OS::TripleO::ObjectStorage::Net::SoftwareConfig:
+#    /home/stack/templates/network/config/single-nic-vlans/swift-storage.yaml
+#  OS::TripleO::CephStorage::Net::SoftwareConfig:
+#    /home/stack/templates/network/config/single-nic-vlans/ceph-storage.yaml
+
+parameter_defaults:
+
+ # The IP address of the EC2 metadata server. Generally the IP of the Undercloud
+ EC2MetadataIp: 192.168.126.1
+ # Gateway router for the provisioning network (or Undercloud IP)
+ ControlPlaneDefaultRoute: 192.168.126.254
+ # https://bugzilla.redhat.com/show_bug.cgi?id=1328149
+ ControlPlaneSubnetCidr: '24'
+ DnsServers: ["8.8.8.8"]
+
+ InternalApiNetCidr: 172.16.0.0/24
+ TenantNetCidr: 172.17.0.0/24
+ StorageNetCidr: 172.18.0.0/24
+ StorageMgmtNetCidr: 172.19.0.0/24
+ ExternalNetCidr: 192.168.122.0/24
+
+ # Leave room for floating IPs in the External allocation pool
+ ExternalAllocationPools: [{'start': '192.168.122.101', 'end': '192.168.122.200'}]
+ InternalApiAllocationPools: [{'start': '172.16.0.10', 'end': '172.16.0.200'}]
+ TenantAllocationPools: [{'start': '172.17.0.10', 'end': '172.17.0.200'}]
+ StorageAllocationPools: [{'start': '172.18.0.10', 'end': '172.18.0.200'}]
+ StorageMgmtAllocationPools: [{'start': '172.19.0.10', 'end': '172.19.0.200'}]
+
+ InternalApiNetworkVlanID: 201
+ StorageNetworkVlanID: 202
+ StorageMgmtNetworkVlanID: 203
+ TenantNetworkVlanID: 204
+
+ # ExternalNetworkVlanID: 100
+ # Set to the router gateway on the external network
+ ExternalInterfaceDefaultRoute: 192.168.100.1
+ # Set to "br-ex" if using floating IPs on native VLAN on bridge br-ex
+ NeutronExternalNetworkBridge: "br-ex"
+ NeutronTunnelTypes: 'vxlan'
+ # Customize bonding options if required
+ BondInterfaceOvsOptions: "bond_mode=active-backup"

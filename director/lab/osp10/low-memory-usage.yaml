@@ -1,0 +1,18 @@
+# Lower the memory usage of overcloud.
+parameter_defaults:
+  CeilometerWorkers: 1
+  CinderWorkers: 1
+  GlanceWorkers: 1
+  HeatWorkers: 1
+  KeystoneWorkers: 1
+  NeutronWorkers: 1
+  NovaWorkers: 1
+  SaharaWorkers: 1
+  SwiftWorkers: 1
+  GnocchiMetricdWorkers: 1
+
+  ApacheMaxRequestWorkers: 32
+  ApacheServerLimit: 32
+
+  ControllerExtraConfig:
+      'nova::network::neutron::neutron_url_timeout': '60'

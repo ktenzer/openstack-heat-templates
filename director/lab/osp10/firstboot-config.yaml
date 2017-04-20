@@ -1,0 +1,32 @@
+heat_template_version: 2014-10-16
+
+resources:
+  userdata:
+    type: OS::Heat::MultipartMime
+    properties:
+      parts:
+      - config: {get_resource: swapon_config}
+      - config: {get_resource: firstboot_config}
+
+  firstboot_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      config: {get_file: /home/stack/templates/firstboot-setup.sh}
+
+  swapon_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      config: |
+        #!/bin/bash
+        swap_device=$(sudo fdisk -l | grep swap | awk '{print $1}')
+        if [[ $swap_device && ${swap_device} ]]; then
+          rc_local="/etc/rc.d/rc.local"
+          echo "swapon $swap_device " >> $rc_local
+          chmod 755 $rc_local
+          swapon $swap_device
+        fi
+
+outputs:
+  OS::stack_id:
+    value: {get_resource: userdata}
